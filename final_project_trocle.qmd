@@ -10,21 +10,21 @@ embed-resources: true
 
 ------------------------------------------------------------------------
 
-## Overview {#sec-overview}
+## Overview DRAFT {#sec-overview}
+
+This project aims to explore current and historical trends in childhood lead exposures. To understand this issue, data will be summarized and analyzed at national and local (Philadelphia) levels, utilizing data form the National Health and Nutrition Examination Survey (NHANES), the American Community Survey (ASC), and OpenDataPhilly.Throughout this project, I consulted with two Penn Professors: Dr Cheryl Bettigole, the former health commissioner of Philadelphia, and Dr John Holmes, a social epidemiologist. They provided insights on the availability and interpretation of data, important historical contexts, and key policy knowledge.
 
 Materials for this project can be found here: [GitHub Repository](https://github.com/atrocle/BMIN503_Final_Project_Trocle)
 
-## Introduction {#sec-introduction}
+## Introduction DRAFT {#sec-introduction}
 
-The issue:
+### The Problem
 
-Exposure to elevated lead levels during childhood is a critical environmental and public health issue. Lead is a neurotoxin that impacts on neurological and behavioral development in child. Measured most commonly via blood lead levels, there is no safe level of lead exposure for children. Even low levels of lead exposure during developmental stages can lead to lifelong adverse effects on cognitive function and attention.
+Exposure to elevated lead levels during childhood is a critical environmental and public health issue. Lead is a neuro-toxin that impacts neurological and behavioral development in children. Measured most commonly via blood lead levels, there is no safe level of lead exposure in children. Even low levels of lead exposure during developmental stages can lead to lifelong adverse effects on cognitive function and attention.
 
-A primary source of exposure for young children is deteriorating lead based paint, which is still present in many homes despite a national ban in 1978. Children commonly ingest paint chips or paint dust. Both acute and chronic exposure to lead can be dangerous.
+A primary source of exposure for young children is deteriorating lead based paint, which is still present in many homes despite a national ban in 1978. Children commonly ingest paint chips or paint dust. Both acute and chronic exposure to lead can be dangerous. Elevated blood lead levels continue to disproportionately affect marginalized communities, especially low-income and minority groups who often live in older, non-remidiated housing. Addressing lead exposure is key to addressing health disparities nationally and in our communities.
 
-Elevated blood lead levels continue to disproportionately affect marginalized communities, especially low-income and minority groups who often live in older, non-remidiated housing. Addressing lead exposure is key to addressing health disparities nationally and in our communities.
-
-The Policy:
+### The Policies
 
 A number of federal, state and local policies have dramatically reduces the rates of lead exposures in the past 50 years.
 
@@ -36,7 +36,7 @@ National:
 
 1999: Lead Safe Housing Rule
 
-2021:
+2021: Biden-Harris Lead Pipe and Paint Action Plan
 
 Local:
 
@@ -44,11 +44,11 @@ Local:
 
 2019: Expansion of the 2011 law to include all rental properties, not only those with children
 
-This Project:
+### This Project
 
-Using data from the NHANES, ASC, OpenDataPhilly
+Using data from the NHANES, ASC, OpenDataPhilly, this project sought to understand the relationship between lead exposure and various demographic, socioeconomic and neighborhood characteristics.
 
-This project takes an interdisciplinary approach to better understand lead exposure issues at both national, state and local levels. The project integrates social epidemiology, environmental health, public health and policy analysis to address the complex nature of issues that contribute to lead exposure and the significant impact it can have on children.
+This project takes an interdisciplinary approach to better understand lead exposure issues at national, state and local levels. The project integrates social epidemiology, environmental health, public health and policy analysis to address the complex nature of issues that contribute to lead exposure and the significant impact it can have on children.
 
 ## Methods {#sec-methods}
 

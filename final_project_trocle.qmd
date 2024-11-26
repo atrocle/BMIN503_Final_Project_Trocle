@@ -48,13 +48,13 @@ This project takes an interdisciplinary approach to better understand lead expos
 
 ## Methods {#sec-methods}
 
-The datasets used for this project are
+The datasets used for this project are (describe data and over use of each as it relates to the methods)
 
 After loading the necessary packages, the data is uploaded and cleaned below.
 
 ### Loading Packages
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 #Load Packages
 library(nhanesA)
 library(tidyverse)
@@ -73,7 +73,7 @@ library(spdep)
 
 ### Loading and Cleaning Data
 
-**NHANES**: describe NHANES and the data used
+**NHANES**: (describe NHANES and the data used + add in leveled poverty variables below)
 
 ```{r}
 
@@ -162,7 +162,7 @@ table(nhanes.data.bll$survey, nhanes.data.bll$elevated.bll)
 #nhanes_design_bll <- update(nhanes_design, elevated.bll = nhanes.data.bll$elevated.bll)
 ```
 
-**ACS Data:** The ACS data was loaded. A census API key was previously loaded and is not included in this. The data was then cleaned to get the appropriate housing related variables.
+**ACS Data:** The ACS data was loaded. A census API key was previously loaded and is not included in this document. The data was then cleaned to get the appropriate housing related variables. (add other variables here)
 
 ```{r}
 #revising which variables collecting from the ACS data to use in the analysis -> will use this for mapping and regression
@@ -206,7 +206,7 @@ phllead_geo <- philly.tracts |>
 
 ```
 
-**EPA's EJ Screen Dataset**: Comment about this dataset
+**EPA's EJ Screen Dataset**: (Comment about this dataset)
 
 ```{r}
 ejscreen <- read.csv("C:\\Users\\atrocle\\Documents\\.EPID 6000 Data Science\\Assignments\\Final Project\\EJScreen_2024_Tract.csv", header = TRUE)
@@ -241,7 +241,7 @@ names(phllead_geo)
 
 ```
 
-**Themes**: Themes for maps are loaded
+**Themes**: Themes for maps are loaded.
 
 ```{r}
 myPalette <- colorRampPalette(brewer.pal(9, "BuPu"))  # 
@@ -346,6 +346,8 @@ chisq.test(table)
 
 ```
 
+(Additional national analysis to be considered: statistics and maps relating ACS and EPA's EJJ on a national scale. Will also consider additional statistical tests for the NHANES data)
+
 ### Local:
 
 Using data from Philadelphia BLL collection and national survey, we will look view the issue though a local lens.
@@ -419,6 +421,10 @@ lmspat <- lm( perc_5plus~ Percent_POC + Lead_Paint_Percent, data = phllead_geo)
 #spreg <- spautolm(perc_5plus~ Percent_POC + Lead_Paint_Percent, data = phllead_geo, listw = lw)
 ```
 
+(describe the results)
+
+(Additional local data to be considered - add more ACS and EJJ maps, create other regression models)
+
 ## Conclusion
 
 The visualizations and analyses in this project depict current and historical trends in blood lead levels (BLLs) among children in the United States. Despite overall declines in BLLs, there are disparities that remain to be seen, disproportionately affecting marginalized communities. Geographic regions with higher percentages of low-income populations, racial minorities, and older housing show elevated BLLs. These patterns underscore systemic inequities tied to socioeconomic and environmental factors.
@@ -434,3 +440,5 @@ I would like to thank the following faculty members who were consulted on design
 -   Dr Cheryl Bettigole
 
 ## References
+
+(add references)

@@ -1,19 +1,9 @@
 # BMIN503/EPID600 Final Project
+Ashley Trocle's Final Project Repo
 
-This repository contains templates for the final written report and GitHub repository. Follow the instructions below to clone this repository, and then turn in your final project's code via a pull request to this repository.
+Using data from the NHANES, ASC, OpenDataPhilly, this project sought to understand the relationship between lead exposure and various demographic, socioeconomic and neighborhood characteristics.
 
-1. To start, **fork** this BMIN503_Final_Project repository.
-1. **Clone** the forked repository to your computer.
-1. Modify the files provided, add your own, and **commit** changes to complete your final project.
-1. **Push**/sync the changes up to your GitHub account.
-1. Create a **pull request** on this, the original BMIN503_Final_Project, repository to turn in your final project.
+The project integrates social epidemiology, environmental health, public health and policy analysis to address the complex nature of issues that contribute to lead exposure and the significant impact it can have on children.
 
-
-Follow the instructions [here][forking] if you are unsure what the above steps mean.
-
-DUE DATE FOR FINAL VERSION: 12/13/24 11:59PM. This is a hard deadline. Turn in whatever you have by this date.
-
-
-<!-- Links -->
-[forking]: https://guides.github.com/activities/forking/
+The data files used in this project are appropriately linked within the documents. 
 

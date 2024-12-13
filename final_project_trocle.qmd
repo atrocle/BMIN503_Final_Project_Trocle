@@ -1,5 +1,5 @@
 ---
-title: "Child Blood Lead Levels Nationally and in Philadelphia"
+title: "Exploratory Study of Child Blood Lead Levels Nationally and in Philadelphia"
 subtitle: "BMIN503/EPID600 Final Project"
 author: "Ashley Trocle"
 format: html
@@ -12,7 +12,7 @@ embed-resources: true
 
 ## Overview {#sec-overview}
 
-This project aims to explore current historical trends of childhood lead exposures. To understand this issue, data will be summarized and analyzed at national and local (Philadelphia) levels, utilizing the National Health and Nutrition Examination Survey (NHANES), the American Community Survey (ASC), the EPA's Environmental Justice Indices, and OpenDataPhilly.Throughout this project, I consulted with three Penn Professors: Dr Cheryl Bettigole, the former health commissioner of Philadelphia, Dr Amin Chen, an environmental epidemiologist, and Dr John Holmes, a social epidemiologist. They provided insights on the availability and interpretation of data, important historical contexts, and key policy knowledge.
+This project aims to explore trends in childhood lead exposures. To understand this issue, data will be summarized and analyzed at national and local (Philadelphia) levels, utilizing the National Health and Nutrition Examination Survey (NHANES), the American Community Survey (ASC), the EPA's Environmental Justice Indices, and OpenDataPhilly.Throughout this project, I consulted with three Penn Professors: Dr Cheryl Bettigole, the former health commissioner of Philadelphia, Dr Amin Chen, an environmental epidemiologist, and Dr John Holmes, a social epidemiologist. They provided insights on the availability and interpretation of data, important historical contexts, and key policy knowledge.
 
 Materials for this project can be found here: [GitHub Repository](https://github.com/atrocle/BMIN503_Final_Project_Trocle)
 
@@ -20,13 +20,13 @@ Materials for this project can be found here: [GitHub Repository](https://github
 
 ### The Problem
 
-Exposure to elevated lead levels during childhood is a critical environmental and public health issue. Lead is a neuro-toxin that impacts neurological and behavioral development in children. Measured most commonly via blood lead levels, there is no safe level of lead exposure in children. Even low levels of lead exposure during developmental stages can lead to lifelong adverse effects on cognitive function and attention.
+Exposure to elevated lead levels during childhood is a critical environmental and public health issue. Lead is a neuro-toxin that impacts neurological and behavioral development in children. Measured most commonly via blood lead levels (BLL), there is no safe level of lead exposure in children. Even low levels of lead exposure during developmental stages can lead to lifelong adverse effects on cognitive function and attention.
 
 A primary source of exposure for young children is deteriorating lead based paint, which is still present in many homes despite a national ban in 1978. Children commonly ingest paint chips or paint dust. Both acute and chronic exposure to lead can be dangerous. Elevated blood lead levels continue to disproportionately affect marginalized communities, especially low-income and minority groups who often live in older, non-remidiated housing. Addressing lead exposure is key to addressing health disparities nationally and in our communities.
 
 ### The Policies
 
-A number of federal, state and local policies have dramatically reduces the rates of lead exposures in the past 50 years.
+A number of federal, state and local policies have dramatically reduces the rates of lead exposures in the past 50 years. Understanding these policies is key to analyzing current and historical trends in the data.
 
 National:
 
@@ -48,7 +48,7 @@ This project takes an interdisciplinary approach to better understand lead expos
 
 ## Methods {#sec-methods}
 
-The datasets used for this project are (describe data and over use of each as it relates to the methods)
+The study uses four datasets to understand lead exposure in children, providing both broad and detailed overviews of the issue. A detailed description of these datasets is provided below.
 
 After loading the necessary packages, the data is uploaded and cleaned below.
 
@@ -67,17 +67,23 @@ library(tidycensus)
 library(ggspatial)
 library(leaflet)
 library(RColorBrewer)
-library(spdep)
-
+library(broom)
+library(tigris)
+library(tableone)
+library(survey)
+options(tigris_use_cache = TRUE)
+options(progress_enabled = FALSE)
 ```
 
 ### Loading and Cleaning Data
 
-**NHANES**: (describe NHANES and the data used + add in leveled poverty variables below)
+**NHANES**: NHANES data was initially pulled using the nhanesA package prior to the package being removed. The code below will be used a reference or will be used in the future if the package is made available again.
 
-```{r}
+NHANES data was loaded from two time periods 2015-2016 and 2021-2023 (the most recent survey available). This survey is used to assess the health of American children. Demographic, income, and laboratory (BLL) data was used in this study. Based on 2021 criteria from the CDC, we consider BLLs over 3.5 ug/dl as elevated.
 
-#import NHANES_L (2021-2023): Demographics, Income and Phlebotomy modules
+```{r, eval = FALSE}
+
+#import NHANES_I and NHANES_L (2015-2016 and 2021-2023): Demographics, Income, and Phlebotomy modules
 varlist <- c("DEMO", "PBCD", "INQ") 
 varlist_years <- paste0(rep(varlist, each = 2), c("_I", "_L"))
 
@@ -120,14 +126,16 @@ nhanes.data.sub <- nhanes.data |>
       survey == 12 ~ 1
     ), levels = c(0, 1), 
     labels = c("2015-2016", "2021-2023")))|>
-  filter(age <6)|>
+  filter(age <10)|>
   mutate(agecat = case_when(
       age < 2 ~ "1-<2",
       age >= 2 & age < 3 ~ "2-<3",
       age >= 3 & age < 4 ~ "3-<4",
       age >= 4 & age < 5 ~ "4-<5",
-      age >= 5 & age < 6 ~ "5-<6"
-    )
+      age >= 5 & age < 6 ~ "5-<6",
+      age >= 7 & age < 8 ~ "7-<8",
+      age >= 8 & age < 9 ~ "8-<9",
+      age >= 9 & age < 10 ~ "9-<10")
   )
 
 #planning to relevel or mutate the other variables
@@ -158,36 +166,204 @@ nhanes.data.bll <-nhanes.data.sub|>
 head(nhanes.data.bll)
 table(nhanes.data.bll$survey, nhanes.data.bll$elevated.bll)
 
-#update survey design with elevated bll variables
-#nhanes_design_bll <- update(nhanes_design, elevated.bll = nhanes.data.bll$elevated.bll)
 ```
 
-**ACS Data:** The ACS data was loaded. A census API key was previously loaded and is not included in this document. The data was then cleaned to get the appropriate housing related variables. (add other variables here)
+**NHANES** (data from website): Following removal of the nhanesA package, the data was pulled and loaded from files on the NHANES [website](https://wwwn.cdc.gov/nchs/nhanes/default.aspx). This data is also included in the repository.
+
+```{r}
+#Load the indivudal files downloaded from the NHANES sites 
+#import NHANES_I and NHANES_L (2015-2016 and 2021-2023): Demographics, Income, and Phlebotomy modules
+files <- c("DEMO_I.xpt", "INQ_I.xpt", "PBCD_I.xpt",
+           "DEMO_L.xpt", "INQ_L.xpt", "PBCD_L.xpt")
+
+# Create a list
+data_list <- lapply(files, read_xpt)
+names(data_list) <- files
+
+# Combine datasets for each year using purrr::reduce with full_join
+combine_year <- function(pattern) {
+  files_subset <- names(data_list)[grep(pattern, names(data_list))]
+  reduce(data_list[files_subset], full_join, by = NULL)}
+
+# Combine datasets for "_I" and "_L"
+data_I <- combine_year("_I")
+data_L <- combine_year("_L")
+
+# Combine data 
+nhanes.data <- bind_rows(data_I, data_L)
+
+#Limit the dataset to the necessary variables and limit to children under 5
+nhanes.data.sub <- nhanes.data |>
+  select( id = SEQN, survey = SDDSRVYR, gender = RIAGENDR, age = RIDAGEYR, race = RIDRETH3, hh_education = DMDHREDU,  bll=LBXBPB, blldetected =LBDBPBLC, poverty_level= INDFMMPC, assets = IND310, interview_weight=WTINT2YR, lab_weight = WTPH2YR, MEC_weight =WTMEC2YR, samplingunit = SDMVPSU,strata = SDMVSTRA) |> 
+        mutate(gender = factor(ifelse(gender == 1, 0, 1), 
+                             levels = c(0, 1), 
+                             labels = c("Male", "Female")))|>
+        mutate(survey = factor(case_when(
+            survey == 9 ~ 0,
+            survey == 12 ~ 1
+          ), levels = c(0, 1), 
+          labels = c("2015-2016", "2021-2023")))|>
+        filter(age <10)|> #limit the data to children under 10 who are most at risk of developing more severe outcome long term. 
+        mutate(agecat = case_when(
+            age < 2 ~ "1-<2",
+            age >= 2 & age < 3 ~ "2-<3",
+            age >= 3 & age < 4 ~ "3-<4",
+            age >= 4 & age < 5 ~ "4-<5",
+            age >= 5 & age < 6 ~ "5-<6",
+            age >= 7 & age < 8 ~ "7-<8",
+            age >= 8 & age < 9 ~ "8-<9",
+            age >= 9 & age < 10 ~ "9-<10"))|>
+        mutate(race = factor(race, 
+                     levels = c(1, 2, 3, 4, 6, 7), 
+                     labels = c("Mexican American", 
+                                "Other Hispanic", 
+                                "Non-Hispanic White", 
+                                "Non-Hispanic Black", 
+                                "Non-Hispanic Asian", 
+                                "Other Race - Inc. Multi-Racial")))|>
+        mutate(hh_education = factor(ifelse(hh_education == ".", NA, hh_education),
+                             levels = c(1, 2, 3), 
+                             labels = c("Less than high school degree", 
+                                        "High school/ some college", 
+                                        "College graduate or above")))|>
+        mutate(poverty_level = factor(ifelse(poverty_level %in% 
+                                           c(7, 9, "."), NA, poverty_level),
+                              levels = c(1, 2, 3),
+                              labels = c("< 1.30", 
+                                         "1.31 - 1.85", 
+                                         " > 1.85")))|> 
+        mutate(assets = factor(ifelse(assets %in% c(77, 99, "."), NA, assets),
+                       levels = c(1, 2, 3, 4, 5),
+                       labels = c("Less than $3000", 
+                                  "$3001-$5000", 
+                                  "$5001-$10000", 
+                                  "$10001-$15000", 
+                                  "$15001-$20000")))
+
+head(nhanes.data.sub) #review data cleaning
+
+#Create a Dataset with BLL values as elevated of not elevated
+nhanes.data.bll <-nhanes.data.sub|>
+  filter (blldetected == 0)|>
+  mutate( elevated.bll = case_when(
+       bll < 3.5 ~ "not elevated",
+       bll >= 3.5 ~ "elevated"),
+       elevated.bll = factor(elevated.bll, 
+                             levels = c("not elevated", "elevated")))
+
+head(nhanes.data.bll)
+table(nhanes.data.bll$survey, nhanes.data.bll$elevated.bll)
+
+#Weighting data (using 2 sets of data based on NHANES instructions)
+nhanes.data.bll$adjusted_weight <- nhanes.data.bll$MEC_weight / 2
+
+nhanes.data.bll <- nhanes.data.bll |>
+  filter(!is.na(adjusted_weight))
+
+nhanes_design <- svydesign(
+  id = ~samplingunit,  
+  strata = ~strata,  
+  weights = ~adjusted_weight, 
+  data = nhanes.data.bll,
+  nest = TRUE
+)
+
+summary(nhanes_design) #review the weighted data 
+
+```
+
+**ACS Data:** The ACS [data](https://www.census.gov/data/developers/data-sets/acs-5year.html) was loaded. The ACS collects a wide variety of data from Americans to inform policy. For this study, housing related data from 2015 was collected to assess home ownership and the year a home was built. These are both important considerations given that many policies focus on lead remediation in rental units and properties build before 1978, when lead paint was banned in residential homes. A census API key was previously loaded and is not included in this document. The data was then cleaned and appropriate housing related variables were identified.
 
 ```{r}
 #revising which variables collecting from the ACS data to use in the analysis -> will use this for mapping and regression
 
 #National ACS Data by County
 acs.data.national<- get_acs(geography= "county",
-                   year= 2022,
-                   variables = c("B25034_002E", "B25034_003E", "B25034_004E",
-"B25034_005E", "B25034_006E", "B25034_007E","B25034_008E","B25034_009", "B25034_010E","B25034_011E"),
+                   year= 2015,
+                   variables = c("B25035_001E", #median year home built
+                                 "B25036_001E", #total occupied 
+                                 "B25036_002E", #owner occupied
+                                 "B25036_013E", #renter occupied
+                                 "B25034_001E",	#total homes
+                                 "B25034_002E", #Built 2020 or later
+                                 "B25034_003E", #Built 2010 to 2019
+                                 "B25034_004E",	#Built 2000 to 2009
+                                 "B25034_005E",	#Built 1990 to 1999
+                                 "B25034_006E",	#Built 1980 to 1989
+                                 "B25034_007E",	#Built 1970 to 1979
+                                "B25034_008E", #Built 1960 to 1969
+                                "B25034_009E",	#Built 1950 to 1959
+                                "B25034_010E",	#Built 1940 to 1949
+                                "B25034_011E"),	#Built 1939 or earlier
                output = "wide")
+
+# Transform the data to create percentages by year and ownership
+acs.data.national <- acs.data.national |>
+  mutate(Built_after_1980 = B25034_002E + 
+      B25034_003E + B25034_004E + B25034_005E + B25034_006E,
+    Built_before_1979 = B25034_007E + 
+      B25034_008E + B25034_009E + B25034_010E + B25034_011E,
+    Percent_after_1980 = (Built_after_1980 / B25034_001E) * 100,
+    Percent_before_1979 = (Built_before_1979 / B25034_001E) * 100)|>
+  mutate(
+    Percent_Owner_Occupied = (B25036_002E / B25036_001E) * 100,
+    Percent_Renter_Occupied = (B25036_013E / B25036_001E) * 100)
+
+#To visualize this data, load county polygon data
+us.counties1 <- counties(year=2015, cb = TRUE, resolution = "500k") 
+us.counties <- us.counties1 |>
+  filter(!STATEFP %in% c("02", "15", "60", 
+                            "66", "69", 
+                            "72", "78"))
+
+#Combine the county polygons with ACS national data
+us.counties <- us.counties |> 
+  left_join(acs.data.national, by = "GEOID")
 
 #Philadelphia ACS Data by Tract
 acs.data.phl<- get_acs(geography= "tract",
-                   year= 2022,
-                   variables = c("B25034_002E", "B25034_003E", "B25034_004E",
-"B25034_005E", "B25034_006E", "B25034_007E","B25034_008E","B25034_009", "B25034_010E","B25034_011E"),
+                   year= 2015,
+                   variables = c("B25035_001E", #median year home built
+                                 "B25036_001E", #total occupied 
+                                 "B25036_002E", #owner occupied
+                                 "B25036_013E", #renter occupied
+                                 "B25034_001E",	#total homes
+                                 "B25034_002E", #Built 2020 or later
+                                 "B25034_003E", #Built 2010 to 2019
+                                 "B25034_004E",	#Built 2000 to 2009
+                                 "B25034_005E",	#Built 1990 to 1999
+                                 "B25034_006E",	#Built 1980 to 1989
+                                 "B25034_007E",	#Built 1970 to 1979
+                                "B25034_008E", #Built 1960 to 1969
+                                "B25034_009E",	#Built 1950 to 1959
+                                "B25034_010E",	#Built 1940 to 1949
+                                "B25034_011E"), #Built 1939 or earlier
+                              
                   output = "wide",
                   state="PA",
                   county="Philadelphia")
+
+# Transform the data to create percentages by year and ownership
+acs.data.phl<- acs.data.phl |>
+  mutate(
+    Built_after_1980 = B25034_002E + 
+      B25034_003E + B25034_004E + B25034_005E + B25034_006E,
+    Built_before_1979 = B25034_007E + 
+      B25034_008E + B25034_009E + B25034_010E + B25034_011E,
+    Percent_after_1980 = (Built_after_1980 / B25034_001E) * 100,
+    Percent_before_1979 = (Built_before_1979 / B25034_001E) * 100)|>
+  mutate(
+    Percent_Owner_Occupied = (B25036_002E / B25036_001E) * 100,
+    Percent_Renter_Occupied = (B25036_013E / B25036_001E) * 100)
+
+
 ```
 
-**OpenDataPhilly Lead Data:** The dataset includes the number of children screened for elevated blood lead levels (BLL) defined as \>5ug/dL, incidence of children with elevated BLL, and percent screened that with elevated BLL by census tract from 2013-2015. Values are missing where there are less than 6 observations for confidentiality purposes.
+**OpenDataPhilly Lead Data:** The [data set](https://opendataphilly.org/datasets/philadelphia-child-blood-lead-levels/) includes the number of children screened for elevated blood lead levels (BLL) defined as \>5ug/dL (based on the CDC's criteria in 2012, incidence of children with elevated BLL, and percent screened with elevated BLL by census tract from 2013-2015. Values are missing where there are less than 6 observations for confidentiality purposes.
 
 ```{r}
-#OpenDataPhilly Data
+
+#OpenDataPhilly Data 
 phllead <- read.csv("C:\\Users\\atrocle\\Documents\\.EPID 6000 Data Science\\Assignments\\Final Project\\opendataphl_lead_tract.csv", header = TRUE)
 head(phllead) #confirm loading properly
 
@@ -195,21 +371,26 @@ head(phllead) #confirm loading properly
 philly.tracts <- read_rds("https://raw.githubusercontent.com/HimesGroup/BMIN503/master/DataFiles/philly.tracts.2020.rds")
 names(philly.tracts)
 
-#Combine spatial with lead
+#Combine spatial with lead data
 phllead <- phllead |>
   rename(GEOID = census_tract) |>
   mutate(GEOID = as.character(GEOID))
 
 phllead_geo <- philly.tracts |>
-  left_join(phllead, by = "GEOID")
+  left_join(phllead, by = "GEOID")  
 
+phllead_geo <- phllead_geo |>
+  left_join(acs.data.phl, by = "GEOID")
 
 ```
 
-**EPA's EJ Screen Dataset**: (Comment about this dataset)
+**EPA's EJ Screen Dataset**: The 2024 [data](https://www.epa.gov/environmentaljustice) was downloaded the the EPA's website. The EJScreen data is a national dataset that combines environmental indicators with socioeconomic variables. The data can be used by researchers to inform policy related to environmental issues. In this study, we use demographic variables and justice indices related to lead. These indices combine proxies for exposures to lead paint, racial and income level variables.
 
 ```{r}
+#Load the data form csv
 ejscreen <- read.csv("C:\\Users\\atrocle\\Documents\\.EPID 6000 Data Science\\Assignments\\Final Project\\EJScreen_2024_Tract.csv", header = TRUE)
+
+#Select lead related and demographic variables and rename
 ejscreen_limit <- ejscreen|>
   select( GEOID = ID,      
     State = STATE_NAME,   
@@ -230,6 +411,8 @@ ejscreen_limit <- ejscreen|>
     Lead_Paint_EJ_Index = D2_LDPNT,   
     Lead_Paint_Supp_Index = D5_LDPNT  
   )
+
+#Combine EJJ with Philly and polygon data
 ejscreen_phila <- ejscreen_limit|>
   filter(State== "PENNSYLVANIA" & County_name =="Philadelphia County") |>
   mutate(GEOID = as.character(GEOID))
@@ -238,13 +421,13 @@ ejscreen_phila <- ejscreen_limit|>
 phllead_geo <- phllead_geo |>
   left_join(ejscreen_phila, by = "GEOID")
 names(phllead_geo)
-
 ```
 
-**Themes**: Themes for maps are loaded.
+**Themes**: Finally, themes for maps are loaded.
 
 ```{r}
-myPalette <- colorRampPalette(brewer.pal(9, "BuPu"))  # 
+#Create a theme for maps to be used in future maps
+myPalette <- colorRampPalette(brewer.pal(9, "BuPu"))  
 map_theme <- function() {
   theme_minimal() + 
   theme(axis.line = element_blank(), 
@@ -253,23 +436,47 @@ map_theme <- function() {
         panel.grid = element_line(color = "white"),  
         legend.key.size = unit(0.8, "cm"),           
         legend.text = element_text(size = 12),       
-        legend.title = element_text(size = 12))
-}
+        legend.title = element_text(size = 12))}
 ```
 
 ## Results {#sec-results}
 
-### National:
+### National Lead Data:
 
-Using the national data, we will evaluate trends over time.
+We first analyze national data from NHANES to gain a broader understanding of blood lead levels (BLL) across the United States before narrowing our focus to Philadelphia.
 
 #### Exploratory Analysis of BLLs in Children
 
-Elevated Blood Lead Levels by Year and Gender using NHANES Data
+We initally take a look at the housing stock nationally to identify areas of concern based on the prevalence of lead paint in older homes. This analysis shows a concentration of housing build before 1979 in the Midwest and Northeast, reinforcing the need to explore localized data in places like Philadelphia.
+
+```{r, warning = FALSE}
+pal_fun <- colorNumeric("BuPu", NULL)   
+pu_message <- paste0(us.counties$NAME.y,
+                     "<br> Percent Built before 1979: ",       
+                     round(us.counties$Percent_before_1979), "%")
+
+leaflet(us.counties) |>
+  addProviderTiles(providers$CartoDB.Positron)  |>
+  addPolygons(stroke = TRUE,
+              color = "gray",    
+              weight = 0.4,
+              fillColor = ~ pal_fun(Percent_before_1979),
+              fillOpacity = 0.8, smoothFactor = 0.5, 
+              popup = pu_message) |>  
+                addTiles()|>
+                  addLegend("bottomright",
+                    pal = pal_fun,  
+                    values = ~ Percent_before_1979,
+                    title = 'Built Before 1979 (%)',  
+                    opacity = 1) |>              
+  addScaleBar(position ="bottomleft")
+```
+
+Next, we analyze elevated blood lead levels (BLLs) across various variables, starting with gender in the 2015-2016 NHANES data. The results reveal an equal distribution of elevated BLL cases between genders.
 
 ```{r}
 elevatedgender <- nhanes.data.bll |> 
-  filter(elevated.bll == "elevated") |> 
+  filter(elevated.bll == "elevated", survey == "2015-2016") |> 
   group_by(survey, gender) |> 
   summarize(count = n(), .groups = 'drop')
 
@@ -286,31 +493,34 @@ ggplot(elevatedgender, aes(x = factor(survey), y = count, fill = as.factor(gende
 
 ```
 
-Elevated Blood Lead Levels by Year and Race using NHANES Data
+Next, in this chart of elevated BLL in 2015-2016 by race, we see that the greatest number of children with elevated BLL is in white children. Black children account for about half the number of cases compared with white children. Though Hispanic children have fewer counts, combining this with the number of Mexican American children suggests there are similar counts in Hispanic children as Black children. Considering the overall racial population distribution, this suggests that Black and Hispanic children may be over-represented in those with elevated BLLs.
 
 ```{r}
 elevatedrace <- nhanes.data.bll |> 
-  filter(elevated.bll == "elevated") |> 
-  group_by(survey, race3) |> 
+  filter(elevated.bll == "elevated", survey == "2015-2016") |>  # Filter for 2015-2016 and elevated BLL
+  group_by(survey, race) |> 
   summarize(count = n(), .groups = 'drop')
 
-ggplot(elevatedrace, aes(x = factor(survey), y = count, fill = as.factor(race3))) + 
+ggplot(elevatedrace, aes(x = factor(survey), y = count, fill = as.factor(race))) + 
   geom_bar(stat = "identity", position = "dodge") + 
   labs(
-    title = "Number of Elevated Blood Lead Levels by Survey Year and Race/Ethnicity",
+    title = "Number of Elevated Blood Lead Levels in 2015-2016 by Race/Ethnicity",
     x = "Survey Year",
     y = "Number of Elevated BLL Cases",
-    fill = "Race/ Ethnicity"
+    fill = "Race/Ethnicity"
   ) +
   scale_fill_brewer(palette = "Set2") + 
   theme_minimal()
 ```
 
-Elevated Blood Lead Levels by Year and Age using NHANES Data
+Last, we look at the age breakdown. Here we see that the counts of children with elevated BLLs generally increases with decreasing age. This may be related to younger childrens proclivity to ingesting objects, like lead paint and lead paint dust.
 
 ```{r}
+
 elevatedage <- nhanes.data.bll |> 
-  filter(elevated.bll == "elevated") |> 
+  filter(elevated.bll == "elevated", 
+         survey == "2015-2016", 
+         !is.na(agecat)) |>  # Remove rows where agecat is NA
   group_by(survey, agecat) |> 
   summarize(count = n(), .groups = 'drop')
 
@@ -324,112 +534,306 @@ ggplot(elevatedage, aes(x = factor(survey), y = count, fill = as.factor(agecat))
   ) +
   scale_fill_brewer(palette = "Set2") + 
   theme_minimal()
+
 ```
 
-Statistical Analysis (will update for weighted) Logistic Regression:
+## Statistical Analysis 
 
-```{r}
+**Logistic Regression:**
+
+In this portion of the analysis, we first carry out a logistic regression with the unweighted data. Using a dicotomized outcome of elevated or not elevated BLLs, we look at 5 potential predictors: gender age, race, education of the head of household, and level of assets available to a family. Assets are used a proxy to understand a families ability to complete lead remediation without outside funding. Both the 2015-2016 and 2021-2023 data is used below.
+
+```{r, warning = FALSE}
 logisticmodel <- glm(
-  elevated.bll ~ gender + age + survey + income_poverty,
+  elevated.bll ~ gender + agecat + race + hh_education + assets,
   data = nhanes.data.bll,
   family = binomial(link = "logit")
 )
 summary(logisticmodel)
+
 ```
 
-Chi-Square
+As most values are not significant at a p\<0.05 level, there are limitation to the interpretations to this analysis.
+
+**Adjusted Analysis:**
+
+Next, we look at the adjusted data summarized as a table for both survey years. We then carry out adjusted logistic regression models for the 2015-2016 and 2021-2023 data, separately.
 
 ```{r}
 
-table <- table(nhanes.data.bll$survey, nhanes.data.bll$elevated.bll)
-chisq.test(table)
+#Table 1: 2015-2016 NHANES Data 
+data1516 <- subset(nhanes_design, survey == "2015-2016")
+vars <- c("gender", "agecat", "race", "hh_education", "assets")
+cat_vars <- c("gender", "agecat", "race", "hh_education", "assets")
+
+# Create Table 1
+table1_stratified1 <- svyCreateTableOne(
+  vars = vars, 
+  strata = "elevated.bll",  # Stratify by elevated BLL status
+  data = data1516, 
+  factorVars = cat_vars
+)
+table1_stratified1
+
+
+#Table 2: 2021-2023 NHANES Data 
+data2123 <- subset(nhanes_design, survey == "2021-2023")
+vars2 <- c("gender", "agecat", "race", "assets") #Head of household education is removed from this table
+cat_vars2 <- c("gender", "agecat", "race",  "assets")
+
+# Create Table 2
+table1_stratified2 <- svyCreateTableOne(
+  vars = vars2, 
+  strata = "elevated.bll",  # Stratify by elevated BLL status
+  data = data2123, 
+  factorVars = cat_vars2
+)
+table1_stratified2
 
 ```
 
-(Additional national analysis to be considered: statistics and maps relating ACS and EPA's EJJ on a national scale. Will also consider additional statistical tests for the NHANES data)
+From these outputs, we see that there is significant difference in age (2015-2016 data) and between genders (2021-2023). Though statistically insignificant, we see interested tends across the other variables. We also see variations between the two survey years.
+
+**Adjusted Logistic Regression:**
+
+Lastly, we carry out a logistic regression and calculate odds ratios for the adjusted model to consider the association between each predictor and outcome.
+
+```{r, warning = FALSE}
+#Logistic Model for 2015-2016 Data
+logit_model <- svyglm(elevated.bll ~ gender + agecat + race + poverty_level, 
+                      design = data1516, 
+                      family = quasibinomial())
+summary(logit_model)
+
+logit_model_summary <- summary(logit_model)
+exp_coef <- exp(coef(logit_model))
+conf_int <- exp(confint(logit_model))
+
+# Combine ORs and CIs
+or_table <- data.frame(
+  Variable = names(exp_coef),
+  Odds_Ratio = exp_coef,
+  Lower_CI = conf_int[, 1],
+  Upper_CI = conf_int[, 2]
+)
+
+#Visualize the ORs
+ggplot(or_table, aes(x = Variable, y = Odds_Ratio, ymin = Lower_CI, ymax = Upper_CI)) +
+  geom_pointrange(color = "purple", size = 1) +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "red") +
+  coord_flip() +
+  labs(
+    title = "Odds Ratios",
+    x = "Predictors",
+    y = "Odds Ratio"
+  ) +
+  theme_minimal()
+
+#Logistic Model for 2021-2023 Data
+logit_model2 <- svyglm(elevated.bll ~ gender + agecat + race + poverty_level, 
+                      design = data2123, 
+                      family = quasibinomial())
+summary(logit_model2)
+
+logit_model_summary2 <- summary(logit_model2)
+exp_coef2 <- exp(coef(logit_model2))
+conf_int2 <- exp(confint(logit_model2))
+
+# Combine ORs and CIs
+or_table2 <- data.frame(
+  Variable2 = names(exp_coef2),
+  Odds_Ratio2 = exp_coef2,
+  Lower_CI2 = conf_int2[, 1],
+  Upper_CI2 = conf_int2[, 2]
+)
+
+or_table2
+
+```
+
+In both models, we see extreme estimate values which suggests that the models may not accurately convey associations. We do not see strong association between the predictors and outcome based on the 2015-2016 adjusted logistic regression model. There is some suggestion that race has a signification association but is likely due to missingness - this should be addressed in future studies for both survey years.
 
 ### Local:
 
-Using data from Philadelphia BLL collection and national survey, we will look view the issue though a local lens.
+In the second portion of the analysis, we use the OpenDataPhilly blood lead levels to understand lead exposures at a local level. We also utilize national data form the ACS and EPA to assess the data.
 
-First, we summarize the data
+First, we summarize the data.
 
-```{r}
+```{r, warning = FALSE}
 #Understand how many tracts are redacted
 table(phllead_geo$data_redacted)
 
 #Histogram of the distribuion of elevated BLL %
 ggplot(phllead_geo, aes(x = perc_5plus)) + 
   geom_histogram(binwidth = 2) + 
-  labs(title = "Distribution of % Children with Elevated BLL")
+  labs(title = "Distribution of % Children with Elevated BLL") 
+  
 ```
 
-Next, we look at a visual of the percent of children screen that had elevated BLLs..
+We see that while many census tracts have less than 5% of children with elevated BLLs, the data is skewed suggesting that there will be obvious areas to target for lead remediation.
+
+Next, we use spatial data to better understand which areas might be most important to consider for targeted interventions. Interpretations are included within the chunk.
+
+```{r}
+
+#Change the CRS
+phllead_geo2 <- st_transform(phllead_geo, crs = 4326)
+
+#Static Map of Children Under 5
+ggplot() +
+  geom_sf(data = phllead_geo2, aes(fill = Percent_Under5))+
+   map_theme() + 
+  ggtitle("Tract-level % of Population Under 5 yrs in Philadelphia") + 
+  scale_fill_gradientn(name = "% Population (%)",   
+                    colours = myPalette(100), 
+                       limits = c(0, 0.15),
+                    labels = scales::percent_format(accuracy = 1))
+#There are no obvious patterns when looking at where children under 5 live
+
+#Static Map of EJ Index
+ggplot() +
+  geom_sf(data = phllead_geo2, aes(fill = Lead_Paint_EJ_Index)) +  
+  map_theme() + 
+  ggtitle("Lead Paint Environmental Justice Index in Philadelphia") +  
+  scale_fill_gradientn(name = "Lead Paint Environmental Justice Index", 
+                       colours = myPalette(100))
+#This shows that there might be clear areas where lead paint is most problematic. As this index considers areas where people of color live and low income areas, this therefore provides direction on areas that might be disenfranchised.  
+
+#Static Map of Housing build before 1979 
+ggplot() +
+  geom_sf(data = phllead_geo2, aes(fill = Percent_before_1979)) +  
+  map_theme() + 
+  ggtitle("% Housing Built before 1979 in Philadelphia") +  
+  scale_fill_gradientn(name = "Percent of Homes", 
+                       colours = myPalette(100))
+#This shows us that mostly homes across Philly were build before 1979 and the lead paint ban in 1978. So this is not as helpful for targeted policy creation.
+
+
+ggplot() +
+  geom_sf(data = phllead_geo2, aes(fill = Percent_Renter_Occupied)) +  
+  map_theme() + 
+  ggtitle("% Renter Occupied in Philadelphia") +  
+  scale_fill_gradientn(name = "Percent of Homes", 
+                       colours = myPalette(100))
+#Since the 2011 and 2019 laws are focused on rental properties, it is important to understand where these properties are concentrated
+
+ggplot() +
+  geom_sf(data = phllead_geo2, aes(fill = Percent_Owner_Occupied)) +  
+  map_theme() + 
+  ggtitle("% Owner Occupied in Philadelphia") +  
+  scale_fill_gradientn(name = "Percent of Homes", 
+                       colours = myPalette(100))
+#Conversely, it is helpful to understand where the owned properties are to create interventions that target this group
+
+#Means of Occupancy and Year Build Variables
+averages <- data.frame(
+  Group = c("Occupancy", "Occupancy", "Year Built", "Year Built"),
+  Category = c("Owner Occupied", "Renter Occupied", "Built 1980-Now", "Built Before 1979"),
+  Percentage = c(
+    mean(phllead_geo2$Percent_Owner_Occupied, na.rm = TRUE),
+    mean(phllead_geo2$Percent_Renter_Occupied, na.rm = TRUE),
+    mean(phllead_geo2$Percent_after_1980, na.rm = TRUE),
+    mean(phllead_geo2$Percent_before_1979, na.rm = TRUE)
+  )
+)
+
+# Stacked bar chart
+ggplot(averages, aes(x = Group, y = Percentage, fill = Category)) +
+  geom_bar(stat = "identity", position = "stack") +
+  labs(
+    title = "Average Percentages Across Tracts",
+    x = NULL,
+    y = "Average Percentage (%)",
+    fill = "Category"
+  ) +
+  theme_minimal()
+#this confirms that most properties were build before 1979. Rental and owned properties are split relatively evenly. It is therefore important to consider spatial concentations.
+
+```
+
+From these maps, we see that North and Southwest Philadelphia might be areas to focus interventions. We can now directly analyze the BLLs to make more definitive extrapolations. We will be able to validate out hypothesis about where interventions should take place and identify areas most at risk.
 
 ```{r}
 #Static Map of Elevated BLL %
 ggplot() +
-  geom_sf(data = phllead_geo, aes(fill = perc_5plus))+
+  geom_sf(data = phllead_geo2, aes(fill = perc_5plus))+
    map_theme() + 
   ggtitle("Tract-level % elevated BLL in Philadelphia") + 
   scale_fill_gradientn(name = "% Elevated BLL (%)",   
                     colours = myPalette(100)) 
 
-#Static Map of 
+
+phllead_geo2 <- phllead_geo2 |>
+  mutate(perc_5plus_bins = cut(perc_5plus,
+                               breaks = c(0, 2, 4, 6, 8, 10, Inf),
+                               labels = c("0-2%", "2-4%", "4-6%", "6-8%", "8-10%", ">10%"),
+                               include.lowest = TRUE))
+
+# Plot with the new bins
 ggplot() +
-  geom_sf(data = phllead_geo, aes(fill = Lead_Paint_Percent)) +  
+  geom_sf(data = phllead_geo2, aes(fill = perc_5plus_bins)) +
   map_theme() + 
-  ggtitle("Tract-level Lead Paint Percent in Philadelphia") +  # Update title for clarity
-  scale_fill_gradientn(name = "Lead Paint Percent", 
-                       colours = myPalette(100))
-
-
+  ggtitle("Tract-level % Elevated BLL in Philadelphia") + 
+  scale_fill_manual(name = "% Elevated BLL", 
+                    values = c("0-2%" = "lightblue", 
+                               "2-4%" = "skyblue", 
+                               "4-6%" = "yellow", 
+                               "6-8%" = "orange", 
+                               "8-10%" = "red", 
+                               ">10%" = "darkred")) +
+  theme_minimal() +
+  theme(axis.text = element_blank(),      
+        axis.title = element_blank(),     
+        axis.ticks = element_blank())
 
 ```
 
-We can see that there appears to be some overlap of the areas with lead paint and areas where there. Next, we create an interactive map
+Our analysis shows hotspots of elevated BLLs in the North and Southwest regions of Philadelphia. These areas also show considerable overlap with the EPA lead index map, indicating a possible correlation between elevated BLL and neighborhoods characterized by older housing stock with lead paint. Based on the lead index, these regions are likely communities of color and individuals from lower-income households, highlighting an intersection between environmental and social disparities.
+
+In areas where elevated BLL does not overlap with the EPA’s lead index, it is necessary to further investigate other sources of lead exposure. These could include contaminated soil, lead pipes, or industrial emissions. Identifying and understanding these exposure pathways will provide a more comprehensive picture of the risks and inform targeted interventions.
+
+This analysis confirms the need to prioritize these hotspots regions for interventions. By focusing resources on these vulnerable areas, we can reduce health disparities associated with elevated BLLs in these communities.
+
+**Linear Regression:**
+
+Finally, we carry out a linear regression incorportating variables from the EPA data and outcome data from OpenDataPhilly.
 
 ```{r}
-#Leaflet Map of multiple Variables
-#Change the CRS
-phllead_geo2 <- st_transform(phllead_geo, crs = 4326)
-#create leaflet map here
-```
-
-We can also look at the if the variables from the EPA Environmental Justice scores are related to the percentage of children with elevated BLL.
-
-```{r}
-
 
 #Linear Regression: 
-lm1 <-lm(perc_5plus ~ Percent_POC + Percent_Low_Income + Lead_Paint_Percent, data = phllead_geo)
-summary(lm1)
+modelphl <- lm(perc_5plus ~ Percent_POC + Percent_Low_Income + Percent_Disabled + Percent_No_HS_Education + Percent_Low_Life_Expectancy, data = phllead_geo2)
+
+summary(modelphl)
+
+# Coefficients
+coef_data <- tidy(modelphl, conf.int = TRUE)
+
+# Plot
+ggplot(coef_data, aes(x = term, y = estimate, ymin = conf.low, ymax = conf.high)) +
+  geom_pointrange() +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  coord_flip() +
+  labs(title = "Coefficient Estimates with CIs",
+       x = "Predictors",
+       y = "Estimate") +
+  theme_minimal()
 ```
 
-(describe the results)
+This linear regression model looks at the relationship between socioeconomic and demographic factors and the prevalence of elevated BLL in children, using aggregated data of the percent of children with elevated BLL in a census tract. Significant predictors include the percentage of people of color, people with disabilities, and those in areas with low life expectancy. These predictors have positive associations with elevated BLLs, confirming our previous spatial analysis and adding in new considerations. Interestingly, a higher percentage of individuals without a high school education is associated with lower BLL. This should be further investigated in future studies.
 
-Spatial Regression (working on this)
+The model explains approximately 40% of the variability in elevated BLLs based on the R-squared value. Therefore, this model is likely missing key predictors. However, these findings continue to prove the importance of targeting interventions in vulnerable communities to equitably mitigate lead exposure risks.
 
-```{r}
+## Strength and Limitations
 
-# Create a spatial weights matrix
-nb <- poly2nb(phllead_geo)
-lw <- nb2listw(nb)
+The study includes both nationally representative and geographically specific data to provide a comprehensive evaluation. This allows for cross referencing of historical and current data in situation where this is not available at a specific geographic level. Limitation include missingness which can be dealt with in future studies with imputation and other weighting measures. Though it is useful to use data in multiple time periods, this also poses some challenges in aligning interpretations. Finally, the data is limited due to redaction. This data constraint limits the ability to assess and impact policy.
 
-# Spatial lag model
-lmspat <- lm( perc_5plus~ Percent_POC + Lead_Paint_Percent, data = phllead_geo)
-#spreg <- spautolm(perc_5plus~ Percent_POC + Lead_Paint_Percent, data = phllead_geo, listw = lw)
-```
+## Conclusion and Future Directions
 
-(describe the results)
-
-(Additional local data to be considered - add more ACS and EJJ maps, create other regression models)
-
-## Conclusion
-
-The visualizations and analyses in this project depict current and historical trends in blood lead levels (BLLs) among children in the United States. Despite overall declines in BLLs, there are disparities that remain to be seen, disproportionately affecting marginalized communities. Geographic regions with higher percentages of low-income populations, racial minorities, and older housing show elevated BLLs. These patterns underscore systemic inequities tied to socioeconomic and environmental factors.
+The visualizations and analyses in this project depict current and historical trends in blood lead levels (BLLs) among children in the United States. There are disparities that remain to be seen, disproportionately affecting marginalized communities, as is evident in the analysis of the Philadelphia level data. It is important to continue this research to better understand how communities have been divested in with the intention of creating policy that addresses this disinvestment.
 
 The findings call for targeted interventions. Areas with the highest burden of elevated BLLs should be prioritized for lead remediation efforts, such as replacing infrastructure with lead, enforcing regulations, and providing education on lead exposure prevention. By addressing lead exposures in children through these efforts, these initiatives will address long term consequences of exposure to lead and improve the health of children in the long term.
+
+Future directions of this involves considering and combining statewide data to provide a comprehensive view of the issues and potentially requesting additional data from Penn/CHOP to supplement the City of Philadelphia data. These direction will aim to inform policy and develop targeted solutions to address lead exposures.
 
 ## Acknowledgements
 
@@ -441,4 +845,24 @@ I would like to thank the following faculty members who were consulted on design
 
 ## References
 
-(add references)
+Egan KB, Cornwell CR, Courtney JG, Ettinger AS. Blood Lead Levels in U.S. Children Ages 1–11 Years, 1976–2016. *Environ Health Perspect*. 2021;129(3):037003. doi:10.1289/EHP7932
+
+Gasoline and the environment - leaded gasoline - U.S. Energy Information Administration (EIA). https://www.eia.gov/energyexplained/gasoline/gasoline-and-the-environment-leaded-gasoline.php
+
+Jacobs DE, Brown MJ. Childhood Lead Poisoning 1970-2022: Charting Progress and Needed Reforms. *Journal of Public Health Management and Practice*. 2022;29(2):230. doi:10.1097/PHH.0000000000001664
+
+Childhood Lead Poisoning Surveillance Report \| Programs and initiatives \| City of Philadelphia. Accessed December 11, 2024. https://www.phila.gov/programs/lead-and-healthy-homes-program/childhood-lead-poisoning-surveillance-report/
+
+Philadelphia, Pennsylvania \| Childhood Lead Poisoning Prevention \| CDC. https://www.cdc.gov/lead-prevention/success-stories-by-state/philadelphia-pa.html
+
+About Childhood Lead Poisoning Prevention \| Childhood Lead Poisoning Prevention \| CDC. Accessed December 11, 2024. https://www.cdc.gov/lead-prevention/about/index.html?CDC_AAref_Val=https://www.cdc.gov/nceh/lead/docs/data/state/2017/PA_CountyLevelSummary_2017-508.pdf
+
+Ahrens KA, Haley BA, Rossen LM, Lloyd PC, Aoki Y. Housing assistance and blood lead levels: Children in the United States, 2005-2012. *Am J Public Health*. 2016;106(11):2049-2056. doi:10.2105/AJPH.2016.303432
+
+FACT SHEET: Biden-Harris Administration Strengthens Standards to Protect Millions from Exposure to Lead Paint Dust, Announces New Actions to Address Toxic Lead Exposure \| The White House. https://www.whitehouse.gov/briefing-room/statements-releases/2024/10/24/fact-sheet-biden-harris-administration-strengthens-standards-to-protect-millions-from-exposure-to-lead-paint-dust-announces-new-actions-to-address-toxic-lead-exposure/
+
+Hoffman-Pennesi D, Winfield S, Gavelek A, Santillana Farakos SM, Spungen J. Infants’ and young children’s dietary exposures to lead and cadmium: FDA total diet study 2018–2020. *Food Additives and Contaminants - Part A*. Published online 2024. doi:10.1080/19440049.2024.2396910
+
+Bravo MA, Zephyr D, Kowal D, Ensor K, Miranda ML. Racial residential segregation shapes the relationship between early childhood lead exposure and fourth-grade standardized test scores. *Proc Natl Acad Sci U S A*. 2022;119(34). doi:10.1073/PNAS.2117868119
+
+Miranda ML, Lilienfeld A, Tootoo J, Bravo MA. Segregation and Childhood Blood Lead Levels in North Carolina. *Pediatrics*. 2023;152(3):e2022058661. doi:10.1542/PEDS.2022-058661
